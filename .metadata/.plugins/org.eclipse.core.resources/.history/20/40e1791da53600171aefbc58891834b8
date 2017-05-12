@@ -1,0 +1,209 @@
+/*
+ * bridge.c
+ *
+ *  Created on: Mar 26, 2017
+ *      Author: Bill
+ */
+#include <string.h>
+#include <stdio.h>
+#include <inttypes.h>
+#include "common.h"
+#include "system.h"
+#include "led.h"
+#include "clock.h"
+#include "protocol.h"
+#include "communications.h"
+#include "USB.h"
+#include "bluetooth.h"
+#include "RS485.h"
+#include "dynamixels.h"
+#include "AX12.h"
+#include "AXS1.h"
+#include "motion.h"
+#include "bridge.h"
+
+/*
+ * Will really need to take a look at what I'm doing with the AX12 and AXS1 structures
+ * they have an ID at the beginning, so 'sizeof' operations will report 1 byte bigger
+ * than what I'm actually considering the object size...
+ *
+ this all needs to be moved to 'bridge'. The ping function is redundant to dynamixel.h
+ the other functions should be there as well, accepting buffers for requests and
+ responses as appropriate.
+
+ None of these should take an instruction. We already know what ths instruction is...
+ */
+
+void bridgeProcess()
+{
+	uint8_t requestParametersLength;
+
+	if(USBRxIsPacketReady(&requestParametersLength))
+	{
+		uint8_t requestParameters[requestParametersLength];
+		uint8_t ID;
+		uint8_t instruction;
+		uint8_t motionSection[MOTION_PAGE_SECTION_LENGTH];
+
+		USBRxPacket(&ID, &instruction, requestParameters, requestParametersLength);
+
+		switch(instruction)
+		{
+			case INST_PING:
+				bridgePing(ID);
+				break;
+			case INST_READ_DATA:
+				bridgeReadData(ID, requestParameters, requestParametersLength);
+				break;
+			case INST_WRITE_DATA:
+				bridgeWriteData(ID, requestParameters, requestParametersLength);
+				break;
+			case INST_REG_WRITE:
+				break;
+			case INST_ACTION:
+				break;
+			case INST_RESET:
+				break;
+			case INST_DIGITAL_RESET:
+				break;
+			case INST_SYSTEM_READ:
+				break;
+			case INST_SYSTEM_WRITE:
+				break;
+			case INST_SYNC_WRITE:
+				break;
+			case INST_SYNC_REG_WRITE:
+				break;
+			case INST_WRITE_PAGE_SECTION_TO_BUFFER:
+				motionWritePageSectionToPageBuffer(requestParameters[0], &requestParameters[1]);
+				USBTxPacket(CM5_ID, USB_ERROR_NONE, NULL, 0);
+				break;
+			case INST_READ_PAGE_SECTION_FROM_BUFFER:
+				motionReadPageSectionFromPageBuffer(requestParameters[0], motionSection);
+				USBTxPacket(CM5_ID, USB_ERROR_NONE, motionSection, sizeof(motionSection));
+				break;
+			case INST_TRANSFER_PAGE_BUFFER_TO_FLASH:
+				motionTransferPageBufferToFlash(requestParameters[0]);
+				USBTxPacket(CM5_ID, USB_ERROR_NONE, NULL, 0);
+				break;
+			case INST_TRANSFER_PAGE_BUFFER_TO_MOTION_PAGE:
+				motionTransferPageBufferToMotionPage();
+				USBTxPacket(CM5_ID, USB_ERROR_NONE, NULL, 0);
+				break;
+			case INST_TRANSFER_FLASH_TO_PAGE_BUFFER:
+				motionTransferFlashToPageBuffer(requestParameters[0]);
+				USBTxPacket(CM5_ID, USB_ERROR_NONE, NULL, 0);
+				break;
+			case INST_TRANSFER_FLASH_TO_MOTION_PAGE:
+				motionTransferFlashToMotionPage(requestParameters[0]);
+				USBTxPacket(CM5_ID, USB_ERROR_NONE, NULL, 0);
+				break;
+			case INST_EXECUTE_MOTION_PAGE:
+				motionExecuteMotion(requestParameters[0], 0, 0);
+				USBTxPacket(CM5_ID, USB_ERROR_NONE, NULL, 0);
+				break;
+			case INST_BREAK_MOTION_PAGE:
+				motionSceneBreak();
+				USBTxPacket(CM5_ID, USB_ERROR_NONE, NULL, 0);
+				break;
+			case INST_READ_AX12_IMAGE_IN_MEMORY:
+					bridgeReadAX12ImageInMemory(ID);
+				break;
+			case INST_READ_AXS1_IMAGE_IN_MEMORY:
+				break;
+		}
+	}
+}
+
+void bridgePing(uint8_t bID)
+{
+	uint8_t errorNo;
+
+	if(dynamixelsPing(bID, &errorNo))
+	{
+		USBTxPacket(CM5_ID, errorNo, NULL, 0);
+	}
+}
+
+void bridgeReadData(uint8_t bID, uint8_t *requestParameters, uint8_t requestParametersLength)
+{
+	uint8_t errorNo;
+
+	uint8_t responseParametersLength = requestParameters[1];
+	uint8_t responseParameters[responseParametersLength];
+	if(dynamixelsReadData(bID, &errorNo, requestParameters, requestParametersLength, responseParameters, responseParametersLength))
+	{
+		USBTxPacket(CM5_ID, errorNo, responseParameters, responseParametersLength);
+	}
+}
+
+void bridgeWriteData(uint8_t bID, uint8_t *requestParameters, uint8_t requestParametersLength)
+{
+	uint8_t errorNo;
+
+	if(dynamixelsWriteData(bID, &errorNo, requestParameters, requestParametersLength))
+	{
+		USBTxPacket(CM5_ID, errorNo, NULL, 0);
+	}
+}
+
+void bridgeReadAX12ImageInMemory(uint8_t bID)
+{
+
+	uint8_t responseParametersLength = sizeof(AX12);
+	uint8_t responseParameters[responseParametersLength];
+	if(AX12ReadAX12ImageInMemory(bID, responseParameters))
+	{
+		USBTxPacket(CM5_ID, USB_ERROR_NONE, responseParameters, responseParametersLength);
+	}
+	else
+	{
+		USBTxPacket(CM5_ID, USB_REQUEST_FAILED, NULL, 0);
+	}
+}
+
+void bridgeWriteAX12ImageInMemory(uint8_t bID, uint8_t *requestParameters)
+{
+	if(AX12WriteAX12ImageInMemory(bID, requestParameters))
+	{
+		USBTxPacket(CM5_ID, USB_ERROR_NONE, NULL, 0);
+	}
+	else
+	{
+		USBTxPacket(CM5_ID, USB_REQUEST_FAILED, NULL, 0);
+	}
+}
+
+void bridgeUpdateAX12ImageInMemoryFromDevice(uint8_t bID)
+{
+	if(AX12UpdateAX12ImageInMemoryFromDevice(bID))
+	{
+		USBTxPacket(CM5_ID, USB_ERROR_NONE, NULL, 0);
+	}
+	else
+	{
+		USBTxPacket(CM5_ID, USB_REQUEST_FAILED, NULL, 0);
+	}
+}
+
+void bridgeUpdateAX12DeviceFromImageInMemory(uint8_t bID)
+{
+	if(AX12UpdateAX12DeviceFromImageInMemory(bID))
+	{
+		USBTxPacket(CM5_ID, USB_ERROR_NONE, NULL, 0);
+	}
+	else
+	{
+		USBTxPacket(CM5_ID, USB_REQUEST_FAILED, NULL, 0);
+	}
+}
+
+void bridgeUpdateAllAX12ImagesInMemoryFromDevices(void)
+{
+	AX12UpdateAllAX12ImagesInMemoryFromDevices();
+}
+
+void bridgeUpdateAllAX12DevicesFromImagesInMemory(void)
+{
+	AX12UpdateAllAX12DevicesFromImagesInMemory();
+}

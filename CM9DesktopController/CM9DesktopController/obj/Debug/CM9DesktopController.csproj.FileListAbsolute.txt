@@ -1,0 +1,8 @@
+D:\Programming\Robot\Bioloid\OpenCM9\CM9DesktopController\CM9DesktopController\bin\Debug\Motion512ReaderTransmitter.exe
+D:\Programming\Robot\Bioloid\OpenCM9\CM9DesktopController\CM9DesktopController\bin\Debug\Motion512ReaderTransmitter.pdb
+D:\Programming\Robot\Bioloid\OpenCM9\CM9DesktopController\CM9DesktopController\obj\Debug\CM9DesktopController.frmCM9DesktopController.resources
+D:\Programming\Robot\Bioloid\OpenCM9\CM9DesktopController\CM9DesktopController\obj\Debug\CM9DesktopController.Properties.Resources.resources
+D:\Programming\Robot\Bioloid\OpenCM9\CM9DesktopController\CM9DesktopController\obj\Debug\CM9DesktopController.csproj.GenerateResource.Cache
+D:\Programming\Robot\Bioloid\OpenCM9\CM9DesktopController\CM9DesktopController\obj\Debug\Motion512ReaderTransmitter.exe
+D:\Programming\Robot\Bioloid\OpenCM9\CM9DesktopController\CM9DesktopController\obj\Debug\Motion512ReaderTransmitter.pdb
+D:\Programming\Robot\Bioloid\OpenCM9\CM9DesktopController\CM9DesktopController\obj\Debug\CM9DesktopController.csprojResolveAssemblyReference.cache
